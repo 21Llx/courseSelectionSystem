@@ -338,6 +338,22 @@ if ($sqlObj->connect_errno != 0) {
       }
       echo true;
       break;
+    case "applyCur":  //课程申请
+      $tmpName = $_FILES['image']['tmp_name'];
+      $imgPath = 'images/curImgs/';
+      $picUrl = $imgPath . time() . '.jpg';
+      $result = move_uploaded_file($tmpName, $picUrl);
+      $sqlIns = 'INSERT INTO applycur(curName,curTeacher,teacherID,curDuration,curBeginTime,curEndTime,curPeoples,image,LEAST,evaluate,curdetail)
+      VALUES("'.$_POST['curName'].'","'.$_POST['teacherName'].'",'.$_POST['teacherID'].',"'.$_POST['curDuration'].'","'.$_POST['beginTime'].'","'.$_POST['endTime'].'","'.$_POST['curPeoples'].'","'.$picUrl.'","'.$_POST['least'].'",'.$_POST['evaluate'].',"'.$_POST['curDetail'].'")';
+      $result2 = $sqlObj->query($sqlIns);
+      echo json_encode(array('code' => 3020));
+      break;  
+    case "getApply":
+      $sqlSel = 'select * from applycur where teacherID="'.$_POST['teacherID'].'"';
+      $result = $sqlObj->query($sqlSel);
+      $info = $result->fetch_all(MYSQLI_ASSOC);
+      echo json_encode($info);
+      break;
 //管理员      
     case "adminLogin": //管理员登陆
       $sql = 'SELECT * FROM admin WHERE adminID ="' . $_POST['ID'] . '" AND password="' . $_POST['password'] . '";';
@@ -364,17 +380,24 @@ if ($sqlObj->connect_errno != 0) {
       $result = $sqlObj->query($sqlUpd);
       echo json_encode(array('code' => 3010, 'msg' => '状态改变成功'));
       break;
-    case "uploadCur":    //上传课程
-      $tmpName = $_FILES['image']['tmp_name'];
-      // $imgPath = '../bin/gdesion/static/images/curImgs/';
-      // $img = '../../../static/images/curImgs/';
-      $imgPath = 'images/curImgs/';
-      $picUrl = $imgPath . time() . '.jpg';
-      $result = move_uploaded_file($tmpName, $picUrl);
+    case "getApplyCur":   //获取申请的课程 
+      $sqlSel = 'select * from applycur where state=0';
+      $result = $sqlObj->query($sqlSel);
+      $info = $result->fetch_all(MYSQLI_ASSOC);
+      echo json_encode($info);
+      break;
+    case "sureApply":     //确认申请
       $sqlIns = 'INSERT INTO curriculum(curName,curTeacher,teacherID,curDuration,curBeginTime,curEndTime,curPeoples,image,LEAST,evaluate,curdetail)
-      VALUES("'.$_POST['curName'].'","'.$_POST['teacherName'].'",'.$_POST['teacherID'].',"'.$_POST['curDuration'].'","'.$_POST['beginTime'].'","'.$_POST['endTime'].'","'.$_POST['curPeoples'].'","'.$picUrl.'","'.$_POST['least'].'",'.$_POST['evaluate'].',"'.$_POST['curDetail'].'")';
-      $result2 = $sqlObj->query($sqlIns);
-      echo json_encode(array('code' => 3020));
+      VALUES("'.$_POST['curName'].'","'.$_POST['curTeacher'].'",'.$_POST['teacherID'].',"'.$_POST['curDuration'].'","'.$_POST['curBeginTime'].'","'.$_POST['curEndTime'].'","'.$_POST['curPeoples'].'","'.$_POST['image'].'","'.$_POST['least'].'",'.$_POST['evaluate'].',"'.$_POST['curDetail'].'")';
+      $result = $sqlObj->query($sqlIns);
+      $sqlUpd = 'update applycur set state=1 where curID='.$_POST['curID'].'';
+      $result = $sqlObj->query($sqlUpd);
+      echo '上传成功';
+      break;
+    case "backApply":     //退回申请
+      $sqlUpd = 'update applycur set applyfail="'.$_POST['applyFail'].'",state=2 where curID='.$_POST['curID'].'';
+      $result = $sqlObj->query($sqlUpd);
+      echo '申请退回成功';
       break;
     case "getCurAll":    //获取全部课程
       $sqlSel = 'select * from curriculum';

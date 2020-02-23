@@ -17,7 +17,7 @@
         <ul @click="chooseTab">
           <li :class="tabNum == 0 ? 'search1 pseudo' : 'search'" @click="tabNum = 0;">信息搜索</li>
           <li :class="tabNum == 1 ? 'perData1 pseudo' : 'perData'" @click="tabNum = 1;">学生管理</li>
-          <li :class="tabNum == 2 ? 'upload1 pseudo' : 'upload'" @click="tabNum = 2">课程上传</li>
+          <li :class="tabNum == 2 ? 'upload1 pseudo' : 'upload'" @click="tabNum = 2">课程审核</li>
           <li :class="tabNum == 3 ? 'curriculum1 pseudo' : 'curriculum'" @click="tabNum = 3">课程管理</li>
         </ul>
       </div>
@@ -113,56 +113,50 @@
         </table>
       </div>
       <div class="tabRight" v-else-if="tabNum==2">
-        <h2>课程上传</h2>
-        <div class="upload">
-          <el-form ref="form" :model="form" label-width="80px">
-            <el-form-item label="课程名称">
-              <el-input v-model="form.curName"></el-input>
-            </el-form-item>
-            <el-form-item label="教师ID">
-              <el-input v-model="form.teacherID"></el-input>
-            </el-form-item>
-            <el-form-item label="教师姓名">
-              <el-input v-model="form.teacherName"></el-input>
-            </el-form-item>
-            <el-form-item label="课程时长">
-              <el-input-number v-model="form.curDuration" :precision="1" :step="0.1" :max="1000"></el-input-number>
-            </el-form-item>
-            <el-form-item label="开始时间">
-              <el-date-picker
-                v-model="form.times"
-                type="datetimerange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="截止日期"
-              ></el-date-picker>
-            </el-form-item>
-            <el-form-item label="允许人数">
-              <el-input-number v-model="form.curPeoples" :min="1" :max="1000"></el-input-number>
-            </el-form-item>
-            <el-form-item label="课程图片">
-              <input id="inputFile" type="file" @change="getImgFile" value="选择文件" />
-            </el-form-item>
-            <el-form-item label="最低限额">
-              <el-input-number v-model="form.least" :min="0" :max="1000"></el-input-number>
-            </el-form-item>
-            <el-form-item label="课程难度">
-              <el-input-number v-model="form.evaluate" :precision="1" :step="0.1" :max="1000"></el-input-number>
-            </el-form-item>
-            <el-form-item label="课程详情">
-              <el-input
-                type="textarea"
-                :autosize="{ minRows: 2, maxRows: 6}"
-                placeholder="请输入内容"
-                v-model="form.curDetail"
-              ></el-input>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="onSubmit">立即创建</el-button>
-              <el-button>取消</el-button>
-            </el-form-item>
-          </el-form>
-        </div>
+        <h2>课程审核</h2>
+        <table class="currTable">
+          <tr class="currTable_th">
+            <th>课程名称</th>
+            <th>授课老师</th>
+            <th>报名时间</th>
+            <th>课程审核</th>
+          </tr>
+          <tr class="currTable_td" v-for="item in applyCurs">
+            <td>{{item.curName}}</td>
+            <td>{{item.curTeacher}}</td>
+            <td>{{item.curBeginTime}}</td>
+            <td>
+              <el-button @click="toApply(item.curID)" type="success" round>审核</el-button>
+            </td>
+          </tr>
+        </table>
+        <el-drawer
+          :with-header="false"
+          :visible.sync="drawer"
+          :direction="direction"
+          :before-close="handleClose"
+        >
+          <div class="applyDrawer">
+            <p class="applyTitle">课程名称</p>
+            <p class="applyValue">{{applying.curName}}</p>
+            <p class="applyTitle">教师ID</p>
+            <p class="applyValue">{{applying.teacherID}}</p>
+            <p class="applyTitle">教师姓名</p>
+            <p class="applyValue">{{applying.curTeacher}}</p>
+            <p class="applyTitle">课程时长</p>
+            <p class="applyValue">{{applying.curDuration}}</p>
+            <p class="applyTitle">报名时间</p>
+            <p class="applyValue">{{applying.curBeginTime}}--{{applying.curEndTime}}</p>
+            <p class="applyTitle">允许人数</p>
+            <p class="applyValue">{{applying.curPeoples}}</p>
+            <p class="applyTitle">最低限额</p>
+            <p class="applyValue">{{applying.least}}</p>
+            <p class="applyTitle">课程详情</p>
+            <p class="applyValue">{{applying.curDetail}}</p>
+            <el-button class="applyBtn" type="primary" @click="submitCur">上传</el-button>
+            <el-button class="applyBtn" type="danger" @click="backCur">退回</el-button>
+          </div>
+        </el-drawer>
       </div>
       <div class="tabRight" v-else-if="tabNum==3">
         <h2>课程管理</h2>
@@ -215,20 +209,22 @@ export default {
       search: 0,
       searchList: [],
       stuTableData: [],
-      form: {
-        type: "uploadCur",
+      curTableData: [],
+      applyCurs: [],
+      applyed: false,
+      drawer: false,
+      direction: "rtl",
+      applying: {
         curName: "",
         teacherID: "",
-        teacherName: "",
-        curDuration: 1,
-        times: [],
-        curPeoples: 1,
-        image: "",
-        least: 1,
-        evaluate: 0, 
+        curTeacher: "",
+        curDuration: "",
+        curBeginTime: "",
+        curEndTime: "",
+        curPeoples: "",
+        least: "",
         curDetail: ""
-      },
-      curTableData: []
+      }
     };
   },
   async created() {
@@ -258,16 +254,22 @@ export default {
         .catch(() => {});
     },
     async chooseTab() {
-      if(this.tabNum != 0){
-        this.selectInput = ''
-        this.selectTab = ''
-        this.searchList = []
+      this.applyed = false;
+      if (this.tabNum != 0) {
+        this.selectInput = "";
+        this.selectTab = "";
+        this.searchList = [];
       }
       if (this.tabNum == 1) {
         const res = await myAxios(this, {
           type: "getStuAll"
         });
         this.stuTableData = res;
+      } else if (this.tabNum == 2) {
+        const res = await myAxios(this, {
+          type: "getApplyCur"
+        });
+        this.applyCurs = res;
       } else if (this.tabNum == 3) {
         const res = await myAxios(this, {
           type: "getCurAll"
@@ -279,13 +281,12 @@ export default {
       if (this.selectTab == "") {
         this.$message.error("你还未选择要查询的对象");
         return;
-      }else if(this.selectTab == "1"){
-        this.search = 1
-      }else if(this.selectTab == "2"){
-        this.search =2
+      } else if (this.selectTab == "1") {
+        this.search = 1;
+      } else if (this.selectTab == "2") {
+        this.search = 2;
       }
       if (this.selectInput != "") {
-        
         const res = await myAxios(this, {
           type: "searchInput",
           selectTab: this.selectTab,
@@ -331,7 +332,7 @@ export default {
             type: "deleteCur",
             curID: ID
           });
-          this.searchList.splice(index,1)
+          this.searchList.splice(index, 1);
           this.$message({
             message: "课程取消成功",
             type: "success"
@@ -362,67 +363,62 @@ export default {
         })
         .catch(() => {});
     },
-    getImgFile(e) {
-      if (e.target.files[0].type == "image/jpeg") {
-        this.form.image = e.target.files[0];
-      } else {
-        this.$message.error("上传的图片为jpg格式");
-        var inputFile = document.getElementById("inputFile");
-        inputFile.value = "";
-      }
+    async toApply(ID) {
+      var applying = this.applyCurs.filter(v => {
+        return v.curID == ID;
+      });
+      this.applying = applying[0];
+      this.drawer = true;
     },
-    onSubmit() {
-      var that = this;
-      var flag = true;
-      for (const key in this.form) {
-        if (this.form[key] == "" || this.form[key] == null) {
-          flag = false;
-          break;
-        }
-      }
-      this.$confirm(`是否要上传该课程`, "学生状态", {
+    handleClose(done) {
+      this.$confirm("确认关闭？")
+        .then(_ => {
+          done();
+        })
+        .catch(_ => {});
+    },
+    submitCur() {
+      this.$confirm("确认上传该课程？")
+        .then(async () => {
+          const res = await myAxios(this, {
+            type: "sureApply",
+            ...this.applying
+          });
+          this.$message({
+            message: res,
+            type: "success"
+          });
+          this.drawer = false;
+          const res2 = await myAxios(this, {
+            type: "getApplyCur"
+          });
+          this.applyCurs = res2;
+        })
+        .catch(_ => {});
+    },
+    backCur() {
+      this.$prompt("请输入退回申请的理由", "提示", {
         confirmButtonText: "确定",
         cancelButtonText: "取消",
-        type: "warning"
+        inputPattern: /^.{1,50}$/,
+        inputPlaceholder: "理由控制在50字以内",
+        inputErrorMessage: "评价内容不能为空且不能超过50个字"
       })
-        .then(() => {
-          if (flag) {
-            var formData = new FormData();
-            this.form.beginTime = moment(this.form.times[0]).format(
-              "YYYY-MM-DD-HH:mm:ss"
-            );
-            this.form.endTime = moment(this.form.times[1]).format(
-              "YYYY-MM-DD-HH:mm:ss"
-            );
-            for (const key in this.form) {
-              formData.append(key, this.form[key]);
-            }
-            that.$axios
-              .post(
-                "http://127.0.0.1/courseSelectionSystem/src/index.php",
-                formData,
-                {
-                  headers: {
-                    "Content-Type": "multipart/form-data"
-                  }
-                }
-              )
-              .then(function(res) {
-                that.$message({
-                  message: "课程上传成功",
-                  type: "success"
-                });
-                for (const key in that.form) {
-                  that.form[key] = "";
-                }
-                that.form.least = 1
-                that.form.type = "uploadCur"
-                delete that.form.beginTime 
-                delete that.form.endTime 
-              });
-          } else {
-            this.$message.error("课程填写没有完整");
-          }
+        .then(async ({ value }) => {
+          const res = await myAxios(this, {
+            type: "backApply",
+            applyFail: value,
+            curID: this.applying.curID
+          });
+          this.$message({
+            type: "success",
+            message: res
+          });
+          this.drawer = false;
+          const res2 = await myAxios(this, {
+            type: "getApplyCur"
+          });
+          this.applyCurs = res2;
         })
         .catch(() => {});
     },
@@ -609,8 +605,20 @@ export default {
           background-color: #f5f7fa;
         }
       }
-      .upload {
-        width: 50%;
+      .applyDrawer {
+        .applyTitle {
+          color: rgb(110, 109, 109);
+          font-size: 20px;
+          margin: 10px 20px;
+        }
+        .applyValue {
+          color: #000;
+          font-size: 18px;
+          margin-left: 30px;
+        }
+        .applyBtn {
+          margin: 35px 50px;
+        }
       }
     }
   }
